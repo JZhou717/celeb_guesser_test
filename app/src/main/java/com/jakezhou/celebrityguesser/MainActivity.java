@@ -1,5 +1,6 @@
 package com.jakezhou.celebrityguesser;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.graphics.Bitmap;
@@ -8,9 +9,11 @@ import android.graphics.drawable.Drawable;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -33,6 +36,7 @@ import javax.net.ssl.HttpsURLConnection;
 public class MainActivity extends AppCompatActivity {
 
     //View objects
+    TextView scoreboard;
     ImageView celebImage;
     Button option1;
     Button option2;
@@ -44,8 +48,13 @@ public class MainActivity extends AppCompatActivity {
     String imdb;
     List<String> urls;
     List<String> names;
-    //Stores the index of the current celebrity shown
+    List<String> allNames = new ArrayList<>();
+    //Stores the index and name of the current celebrity shown
     int curr = -1;
+    String name;
+    //Keeps track of user score
+    int correct = 0;
+    int total = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,6 +63,7 @@ public class MainActivity extends AppCompatActivity {
 
         onClick = new MyListener();
 
+        scoreboard = findViewById(R.id.scoreBoard);
         celebImage = findViewById(R.id.celebImage);
         option1 = findViewById(R.id.option1);
         option1.setOnClickListener(onClick);
@@ -79,8 +89,7 @@ public class MainActivity extends AppCompatActivity {
         Log.i("URL list size", urls.size() + "");
         names = findNames(imdb);
         Log.i("Names list size", names.size() + "");
-
-
+        allNames.addAll(names);
         newCeleb();
     }
 
@@ -90,19 +99,24 @@ public class MainActivity extends AppCompatActivity {
 
         //Getting a random celeb
         curr = r.nextInt(urls.size());
+
         //Setting the image for the celeb
         ImageDownloader downloader = new ImageDownloader();
         try {
-            celebImage.setImageBitmap(downloader.execute(urls.get(curr)).get());
+            //Removes this link so we do not get the same celeb again
+            celebImage.setImageBitmap(downloader.execute(urls.remove(curr)).get());
         }
         catch (Exception e) {
             e.printStackTrace();
         }
+
         //Setting the button options using a list to avoid redundant answers
         List<String> options = new ArrayList<>();
-        options.add(names.get(curr));
+        //Removes the name from the original list of names
+        name = names.remove(curr);
+        options.add(name);
         while(options.size() < 4) {
-            String temp = names.get(r.nextInt(names.size()));
+            String temp = allNames.get(r.nextInt(allNames.size()));
             if(!options.contains(temp))
                 options.add(temp);
         }
@@ -201,13 +215,29 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onClick(View v) {
             Button button = (Button) v;
-            if(button.getText().equals(names.get(curr))) {
-                Toast.makeText(MainActivity.this, "You got it!", Toast.LENGTH_SHORT).show();
+            Toast toast;
+
+            if(button.getText().equals(name)) {
+                toast = Toast.makeText(MainActivity.this, "You got it!", Toast.LENGTH_SHORT);
+                correct++;
             }
             else {
-                Toast.makeText(MainActivity.this, "Sorry, it was " + names.get(curr), Toast.LENGTH_SHORT).show();
+                toast = Toast.makeText(MainActivity.this, "Sorry, it was " + name, Toast.LENGTH_SHORT);
             }
-            newCeleb();
+            toast.setGravity(Gravity.CENTER, 0, 0);
+            toast.show();
+            total++;
+            scoreboard.setText("Your Score: " + correct + "/" + total);
+
+            if(total == 100) {
+                new AlertDialog.Builder(MainActivity.this)
+                        .setTitle("All Done!")
+                        .setMessage("Thank you for playing! You've finished all the names. \n Your final score was " + correct + " out of 100.")
+                        .show();
+            }
+            else {
+                newCeleb();
+            }
         }
     }
 }
